@@ -1,50 +1,83 @@
-# Importazione dei moduli necessari
-import socket  # Per la comunicazione di rete
-import time    # Per la misurazione del tempo
+import socket
+import time
+import ipaddress  # Validazione IP
+
+
+def get_valid_ip():
+    # Richiede un IPv4 valido
+    while True:
+        ip = input("Inserisci IP target: ")
+        try:
+            ipaddress.IPv4Address(ip)
+            return ip
+        except ipaddress.AddressValueError:
+            print("[ERRORE] IP non valido.")
+
+
+def get_valid_port():
+    # Richiede una porta UDP valida
+    while True:
+        port = input("Inserisci porta UDP target (1-65535): ")
+        if port.isdigit() and 1 <= int(port) <= 65535:
+            return int(port)
+        print("[ERRORE] Porta non valida.")
+
+
+def get_valid_packet_count(max_packets=9999999):
+    # Limita il numero di pacchetti per evitare abusi
+    while True:
+        count = input(f"Numero pacchetti (max {max_packets}): ")
+        if count.isdigit() and 0 < int(count) <= max_packets:
+            return int(count)
+        print("[ERRORE] Numero pacchetti non valido.")
+
 
 def main():
-    # Richiesta dell'indirizzo IP del target
-    target_ip = input("Inserisci IP target: ")
-    # Richiesta della porta UDP del target
-    target_port = int(input("Inserisci porta UDP target: "))
-    # Richiesta del numero di pacchetti da inviare (1 KB ciascuno)
-    num_packets = int(input("Numero di pacchetti da inviare (1 KB ciascuno): "))
+    # Input validati
+    target_ip = get_valid_ip()
+    target_port = get_valid_port()
+    num_packets = get_valid_packet_count()
 
-    # Definisce la dimensione di ogni pacchetto (1 KB)
-    packet_size = 1024
-    
-    # Blocco try-except per gestire gli errori di rete
+    packet_size = 1024  # 1 KB
+    sent_packets = 0
+
     try:
-        # Crea un socket UDP (SOCK_DGRAM)
+        # Creazione socket UDP
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # Messaggio di inizio dell'invio
-        print(f"\n[INFO] Invio a {target_ip}:{target_port}...")
-        
-        # Registra il tempo di inizio
         start_time = time.time()
-        # Ciclo per inviare i pacchetti
-        for i in range(1, num_packets + 1):
-            # Crea un pacchetto riempito di caratteri 'X'
-            packet = b'X' * packet_size
-            # Invia il pacchetto al target via UDP
-            sock.sendto(packet, (target_ip, target_port))
-        
-        # Calcola il tempo trascorso
-        elapsed = time.time() - start_time
-        # Calcola il throughput (velocità di trasmissione)
-        rate = (num_packets * packet_size) / elapsed if elapsed > 0 else num_packets * packet_size
-        
-        # Stampa i risultati della simulazione
-        print(f"\nPacchetti inviati: {num_packets}")
-        print(f"Tempo: {elapsed:.2f}s")
-        print(f"Throughput: {rate/1024:.2f} KB/s")
-        
-        # Chiude il socket
-        sock.close()
-    # Gestisce qualsiasi errore di rete o esecuzione
+        print(f"\n[INFO] Invio a {target_ip}:{target_port}...")
+
+        # Invio pacchetti
+        for _ in range(num_packets):
+            sock.sendto(b'X' * packet_size, (target_ip, target_port))
+            sent_packets += 1
+
+    except KeyboardInterrupt:
+        # Interruzione manuale
+        print("\n[INTERRUZIONE] Operazione fermata dall'utente.")
+
     except Exception as e:
+        # Errori generici
         print(f"[ERRORE] {e}")
 
-# Punto di ingresso principale del programma
+    finally:
+        # Calcolo statistiche finali
+        elapsed = time.time() - start_time if 'start_time' in locals() else 0
+        total_bytes = sent_packets * packet_size
+        rate = total_bytes / elapsed if elapsed > 0 else 0
+
+        print("\n--- RISULTATI ---")
+        print(f"Pacchetti inviati: {sent_packets}")
+        print(f"Tempo: {elapsed:.2f}s")
+        print(f"Throughput: {rate / 1024:.2f} KB/s")
+
+        # Chiusura socket
+        try:
+            sock.close()
+        except:
+            pass
+
+
 if __name__ == "__main__":
+    # Entry point del programma
     main()
